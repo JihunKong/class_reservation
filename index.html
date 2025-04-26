@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>특별실 예약 시스템</title>
+    <style>
+      :root {
+        --primary-color: #1a73e8;
+        --error-color: #d93025;
+        --success-color: #188038;
+        --border-color: #dadce0;
+        --bg-color: #f8f9fa;
+        --text-color: #202124;
+        --text-secondary: #5f6368;
+      }
+
+      body {
+        margin: 0; 
+        padding: 20px;
+        background-color: var(--bg-color);
+        font-family: Arial, sans-serif;
+        color: var(--text-color);
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background-color: #fff;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .header h1 {
+        color: var(--primary-color);
+        font-size: 24px;
+        margin: 0;
+      }
+
+      /* 탭 */
+      .tab-container {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .tab-button {
+        padding: 8px 16px;
+        border: none;
+        background: #f1f3f4;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+      }
+      .tab-button.active {
+        background: var(--primary-color);
+        color: white;
+      }
+      .tab-button:hover {
+        background: #e8eaed;
+      }
+
+      /* 폼 */
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .form-group {
+        margin-bottom: 16px;
+      }
+      .form-group.wide {
+        grid-column: span 2;
+      }
+      .required-label::after {
+        content: " *";
+        color: var(--error-color);
+      }
+      input, select, textarea {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 14px;
+        transition: 0.2s;
+      }
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+      }
+      input.error, select.error, textarea.error {
+        border-color: var(--error-color);
+        background-color: #fff8f7;
+      }
+      .help-text {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      /* 버튼 */
+      button {
+        background-color: var(--primary-color);
+        color: #fff;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button:hover {
+        background-color: #1557b0;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+
+      /* 캘린더 뷰 */
+      .calendar-view {
+        margin-top: 16px;
+      }
+      #weekCalendar iframe,
+      #monthCalendar iframe {
+        width: 100%;
+        height: 600px;
+        border: none;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+      }
+
+      /* 로딩 */
+      .loading {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        right: 0; bottom: 0;
+        background-color: rgba(255,255,255,0.8);
+        z-index: 999;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+      .loading-spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid var(--primary-color);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 8px;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg);}
+        100% { transform: rotate(360deg);}
+      }
+      .loading p {
+        color: var(--primary-color);
+        margin: 0;
+      }
+
+      /* 메시지 */
+      .message {
+        padding: 12px 16px;
+        margin-top: 16px;
+        border-radius: 4px;
+        display: none;
+      }
+      .message.error {
+        background: #fce8e6;
+        border: 1px solid #fad2cf;
+        color: var(--error-color);
+      }
+      .message.success {
+        background: #e6f4ea;
+        border: 1px solid #ceead6;
+        color: var(--success-color);
+      }
+      .validation-error {
+        color: var(--error-color);
+        font-size: 12px;
+        margin-top: 4px;
+        display: none;
+      }
+
+      /* 반응형 */
+      @media (max-width: 600px) {
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+        .form-group.wide {
+          grid-column: span 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🏫 특별실 예약 시스템</h1>
+      </div>
+
+      <!-- 탭 버튼 -->
+      <div class="tab-container">
+        <button class="tab-button active" onclick="showTab('reservation')">예약하기</button>
+        <button class="tab-button" onclick="showTab('weekly')">주간 예약현황</button>
+        <button class="tab-button" onclick="showTab('monthly')">월간 예약현황</button>
+        <button class="tab-button" onclick="showTab('cancellation')">예약취소</button>
+      </div>
+
+      <!-- 예약 폼 -->
+      <div id="reservationForm">
+        <form onsubmit="return submitReservation()">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="name" class="required-label">이름</label>
+              <input type="text" id="name" name="name" required placeholder="예약자 이름" maxlength="50">
+            </div>
+            <div class="form-group">
+              <label for="email" class="required-label">이메일</label>
+              <input type="email" id="email" name="email" required placeholder="example@school.kr">
+              <div class="help-text">예약 관련 알림을 받을 이메일 주소</div>
+            </div>
+            <div class="form-group">
+              <label for="space" class="required-label">특별실</label>
+              <select id="space" name="space" required>
+                <option value="">선택해주세요</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="date" class="required-label">날짜</label>
+              <input type="date" id="date" name="date" required>
+            </div>
+            <div class="form-group">
+              <label for="period" class="required-label">교시</label>
+              <select id="period" name="period" required>
+                <option value="">선택해주세요</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="gradeClass" class="required-label">학급</label>
+              <input type="text" id="gradeClass" name="gradeClass" required placeholder="예: 1-1">
+            </div>
+
+            <!-- 사용 목적: 이동수업, 수행평가, 행사, 기타 -->
+            <div class="form-group wide">
+              <label for="purposeSelect" class="required-label">사용 목적</label>
+              <select id="purposeSelect" name="purposeSelect" required>
+                <option value="">선택해주세요</option>
+                <option value="이동수업">이동수업</option>
+                <option value="수행평가">수행평가</option>
+                <option value="행사">행사</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <!-- '기타' 선택 시 입력창 노출 -->
+            <div class="form-group wide" id="purposeEtcGroup" style="display:none;">
+              <label for="purposeEtc">기타 사유(자유 입력)</label>
+              <textarea id="purposeEtc" name="purposeEtc" rows="3" maxlength="1000" placeholder="기타 사용 목적을 입력해주세요."></textarea>
+            </div>
+          </div>
+          <button type="submit" id="submitButton">예약 신청하기</button>
+        </form>
+      </div>
+
+      <!-- 주간 예약현황 -->
+      <div id="weeklyView" class="calendar-view" style="display:none;">
+        <h3>주간 예약현황</h3>
+        <div id="weekCalendar"></div>
+      </div>
+
+      <!-- 월간 예약현황 -->
+      <div id="monthlyView" class="calendar-view" style="display:none;">
+        <h3>월간 예약현황</h3>
+        <div id="monthCalendar"></div>
+      </div>
+
+      <!-- 예약 취소 폼 -->
+      <div id="cancellationForm" style="display:none;">
+        <h3>예약 취소</h3>
+        <form onsubmit="return cancelReservation()">
+          <div class="form-group">
+            <label for="cancelName" class="required-label">이름</label>
+            <input type="text" id="cancelName" name="cancelName" required placeholder="예약자 이름">
+          </div>
+          <div class="form-group">
+            <label for="cancelEmail" class="required-label">이메일</label>
+            <input type="email" id="cancelEmail" name="cancelEmail" required placeholder="예약 시 입력한 이메일">
+          </div>
+          <div class="form-group">
+            <label for="reservationId" class="required-label">예약 ID</label>
+            <input type="text" id="reservationId" name="reservationId" required placeholder="예약 확인 메일 참고">
+          </div>
+          <button type="submit" id="cancelButton">예약 취소하기</button>
+        </form>
+      </div>
+
+      <!-- 로딩 표시 -->
+      <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p>처리중입니다...</p>
+      </div>
+
+      <!-- 메시지 표시 -->
+      <div id="message" class="message"></div>
+    </div>
+
+    <script>
+      window.onload = function() {
+        document.getElementById('loading').style.display = 'none';
+        initializeForm();
+      };
+
+      /**
+       * 초기 폼 설정
+       */
+      function initializeForm() {
+        initializeDateInput();
+        setupFormValidation();
+        // 첫 단계: 특별실 목록 불러오기 → 다음에 교시 → 캘린더
+        loadSpaces();
+
+        // 목적 '기타' 선택 시 기타 입력창 표시
+        document.getElementById('purposeSelect').addEventListener('change', function() {
+          const etcGroup = document.getElementById('purposeEtcGroup');
+          etcGroup.style.display = (this.value === '기타') ? 'block' : 'none';
+        });
+      }
+
+      /**
+       * 날짜 min/max 설정
+       */
+      function initializeDateInput() {
+        const dateInput = document.getElementById('date');
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        dateInput.min = formatDateForInput(tomorrow);
+
+        // 최대 한 달 뒤까지만
+        const maxDate = new Date(today);
+        maxDate.setMonth(maxDate.getMonth() + 1);
+        dateInput.max = formatDateForInput(maxDate);
+
+        // 주말 불가
+        dateInput.addEventListener('input', function() {
+          const sel = new Date(this.value);
+          if (sel.getDay() === 0 || sel.getDay() === 6) {
+            showInputError(this, '주말은 예약할 수 없습니다.');
+            this.value = '';
+          } else {
+            clearInputError(this);
+          }
+        });
+      }
+      function hideLoadingMessage() {
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement) {
+          loadingElement.style.display = 'none';
+        }
+      }
+      google.script.url.getLocation(function(location) {
+      hideLoadingMessage();
+      });
+      /**
+       * 특별실 목록 불러오기
+       */
+      function loadSpaces() {
+        google.script.run
+          .withSuccessHandler(function(spaces) {
+            const select = document.getElementById('space');
+            select.innerHTML = '<option value="">선택해주세요</option>';
+            if (Array.isArray(spaces)) {
+              spaces.forEach(function(sp) {
+                if (sp.trim()) {
+                  const opt = document.createElement('option');
+                  opt.value = sp;
+                  opt.textContent = sp;
+                  select.appendChild(opt);
+                }
+              });
+            }
+            // 특별실 로딩 후 교시 목록
+            loadPeriods();
+          })
+          .withFailureHandler(function(err) {
+            console.error(err);
+            showMessage('특별실 목록 불러오기 실패', 'error');
+            setLoading(false);
+          })
+          .getAvailableSpaces();
+      }
+
+      /**
+       * 교시 목록 불러오기
+       */
+      function loadPeriods() {
+        google.script.run
+          .withSuccessHandler(function(periods) {
+            const select = document.getElementById('period');
+            select.innerHTML = '<option value="">선택해주세요</option>';
+            if (Array.isArray(periods)) {
+              periods.forEach(function(pd) {
+                if (pd.trim()) {
+                  const opt = document.createElement('option');
+                  opt.value = pd;
+                  opt.textContent = pd + '교시';
+                  select.appendChild(opt);
+                }
+              });
+            }
+            // 교시까지 로딩 후 달력
+            loadCalendarViews();
+          })
+          .withFailureHandler(function(err) {
+            console.error(err);
+            showMessage('교시 목록 불러오기 실패', 'error');
+            setLoading(false);
+          })
+          .getAvailablePeriods();
+      }
+
+      /**
+       * 예약하기
+       */
+      function submitReservation() {
+        if (!validateForm('reservationForm')) {
+          showMessage('입력 내용을 확인해주세요.', 'error');
+          return false;
+        }
+        const btn = document.getElementById('submitButton');
+        btn.disabled = true;
+        setLoading(true);
+
+        const form = document.querySelector('#reservationForm form');
+        // 목적 + 기타
+        let finalPurpose = form.purposeSelect.value;
+        if (finalPurpose === '기타') {
+          const etcText = form.purposeEtc.value.trim();
+          if (!etcText) {
+            showMessage('기타 사용 목적을 입력해주세요.', 'error');
+            setLoading(false);
+            btn.disabled = false;
+            return false;
+          }
+          finalPurpose += ' - ' + etcText; // "기타 - 마이크 사용" 등
+        }
+
+        const formData = {
+          name: form.name.value.trim(),
+          email: form.email.value.trim(),
+          space: form.space.value,
+          date: form.date.value,
+          period: form.period.value,
+          gradeClass: form.gradeClass.value.trim(),
+          purpose: finalPurpose
+        };
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            setLoading(false);
+            btn.disabled = false;
+            if (res.success) {
+              showMessage('예약이 완료되었습니다! 예약ID: ' + res.reservationId, 'success');
+              form.reset();
+              initializeDateInput(); // 날짜 초기화
+              document.getElementById('purposeEtcGroup').style.display = 'none';
+            } else {
+              showMessage(res.message || '예약 실패', 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            setLoading(false);
+            btn.disabled = false;
+            console.error(err);
+            showMessage('예약 처리 오류 발생', 'error');
+          })
+          .handleReservation(formData);
+
+        return false;
+      }
+
+      /**
+       * 예약 취소
+       */
+      function cancelReservation() {
+        if (!validateForm('cancellationForm')) {
+          showMessage('입력 내용을 확인해주세요.', 'error');
+          return false;
+        }
+        setLoading(true);
+
+        const form = document.querySelector('#cancellationForm form');
+        const cancelData = {
+          name: form.cancelName.value.trim(),
+          email: form.cancelEmail.value.trim(),
+          reservationId: form.reservationId.value.trim()
+        };
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            setLoading(false);
+            if (res.success) {
+              showMessage('예약이 취소되었습니다.', 'success');
+              form.reset();
+            } else {
+              showMessage(res.message, 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            setLoading(false);
+            console.error(err);
+            showMessage('예약 취소 오류 발생', 'error');
+          })
+          .handleReservationCancellation(cancelData);
+
+        return false;
+      }
+
+      /**
+       * 탭 전환
+       */
+      function showTab(tabName) {
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('reservationForm').style.display = 'none';
+        document.getElementById('weeklyView').style.display = 'none';
+        document.getElementById('monthlyView').style.display = 'none';
+        document.getElementById('cancellationForm').style.display = 'none';
+
+        if (tabName === 'reservation') {
+          document.getElementById('reservationForm').style.display = 'block';
+          document.querySelector('[onclick="showTab(\'reservation\')"]').classList.add('active');
+        } else if (tabName === 'weekly') {
+          document.getElementById('weeklyView').style.display = 'block';
+          document.querySelector('[onclick="showTab(\'weekly\')"]').classList.add('active');
+          setLoading(true);
+          google.script.run
+            .withSuccessHandler(function(html) {
+              document.getElementById('weekCalendar').innerHTML = html;
+              setLoading(false);
+            })
+            .getCalendarEmbed('WEEK');
+        } else if (tabName === 'monthly') {
+          document.getElementById('monthlyView').style.display = 'block';
+          document.querySelector('[onclick="showTab(\'monthly\')"]').classList.add('active');
+          setLoading(true);
+          google.script.run
+            .withSuccessHandler(function(html) {
+              document.getElementById('monthCalendar').innerHTML = html;
+              setLoading(false);
+            })
+            .getCalendarEmbed('MONTH');
+        } else if (tabName === 'cancellation') {
+          document.getElementById('cancellationForm').style.display = 'block';
+          document.querySelector('[onclick="showTab(\'cancellation\')"]').classList.add('active');
+        }
+      }
+
+      /**
+       * 폼 유효성 검사
+       */
+      function validateForm(formId) {
+        const form = document.getElementById(formId).querySelector('form');
+        let isValid = true;
+        form.querySelectorAll('[required]').forEach(el => {
+          if (!el.value.trim()) {
+            showInputError(el, '필수 항목입니다.');
+            isValid = false;
+          }
+        });
+        return isValid;
+      }
+
+      function showInputError(input, msg) {
+        let errDiv = input.parentElement.querySelector('.validation-error');
+        if (!errDiv) {
+          errDiv = document.createElement('div');
+          errDiv.className = 'validation-error';
+          input.parentElement.appendChild(errDiv);
+        }
+        errDiv.textContent = msg;
+        errDiv.style.display = 'block';
+        input.classList.add('error');
+      }
+      function clearInputError(input) {
+        const errDiv = input.parentElement.querySelector('.validation-error');
+        if (errDiv) errDiv.style.display = 'none';
+        input.classList.remove('error');
+      }
+      function setLoading(isLoading) {
+        const loadingDiv = document.getElementById('loading');
+        loadingDiv.style.display = isLoading ? 'flex' : 'none';
+        const buttons = document.querySelectorAll('button[type="submit"]');
+        buttons.forEach(btn => (btn.disabled = isLoading));
+      }
+      function showMessage(text, type) {
+        const msgDiv = document.getElementById('message');
+        msgDiv.textContent = text;
+        msgDiv.className = 'message ' + type;
+        msgDiv.style.display = 'block';
+
+        if (type === 'success') {
+          setTimeout(() => {
+            msgDiv.style.display = 'none';
+          }, 5000);
+        }
+        msgDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      function setupFormValidation() {
+        document.querySelectorAll('[required]').forEach(el => {
+          el.addEventListener('input', () => {
+            clearInputError(el);
+          });
+        });
+      }
+      function formatDateForInput(date) {
+        return date.toISOString().split('T')[0];
+      }
+    </script>
+  </body>
+</html>
